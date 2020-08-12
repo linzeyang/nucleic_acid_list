@@ -1,6 +1,7 @@
 import csv
 from datetime import datetime
 from http import HTTPStatus
+import logging
 from pathlib import Path
 
 from git import Repo
@@ -14,7 +15,7 @@ FILENAME = "country_list.csv"
 def main():
     session = HTMLSession()
 
-    print("Start")
+    logger.info("Start")
 
     response = session.get(URL)
 
@@ -22,12 +23,12 @@ def main():
         print(f"Response code: {response.status_code}")
         exit(0)
 
-    print("Source fetched")
+    logger.info("Source fetched")
 
     try:
         response.html.render(retries=20, timeout=30)
     except Exception as e:
-        print(f"Failed to render: {str(e)}")
+        logger.error(f"Failed to render: {str(e)}")
         exit(1)
 
     data = [
@@ -38,27 +39,27 @@ def main():
     ]
 
     if not data:
-        print("No valid data found")
+        logger.warning("No valid data found")
         exit(0)
 
-    p = Path(FILENAME)
+    p = Path(__file__).parent / FILENAME
 
     with p.open(mode="r") as file:
         reader = csv.reader(file)
         existing_data = [line for line in reader]
 
     if data == existing_data:
-        print("No change found on source site")
+        logger.info("No change found on source site")
         exit(0)
 
     with p.open(mode="w", newline="") as file:
         writer = csv.writer(file)
         writer.writerows(data)
 
-    repo = Repo(path=Path.cwd())
+    repo = Repo(path=Path(__file__).parent)
 
     if not repo.is_dirty():
-        print("Nothing to commit locally")
+        logger.warning("Nothing to commit locally")
         exit(0)
 
     repo.index.add(items=[FILENAME,])
@@ -69,4 +70,9 @@ def main():
 
 
 if __name__ == "__main__":
+    logger = logging.getLogger(__name__)
+    logger.setLevel("DEBUG")
+    fh = logging.FileHandler(Path(__file__).parent / "history.log")
+    fh.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+    logger.addHandler(fh)
     main()
