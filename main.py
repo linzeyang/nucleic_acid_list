@@ -1,11 +1,14 @@
 import csv
+from datetime import datetime
 from http import HTTPStatus
 from pathlib import Path
 
+from git import Repo
 from requests_html import HTMLSession
 
 
 URL = "https://hr.cs.mfa.gov.cn/help_two/help-two/gj.html"
+FILENAME = "country_list.csv"
 
 
 def main():
@@ -38,19 +41,29 @@ def main():
         print("No valid data found")
         exit(0)
 
-    p = Path("country_list.csv")
+    p = Path(FILENAME)
 
     with p.open(mode="r") as file:
         reader = csv.reader(file)
         existing_data = [line for line in reader]
 
     if data == existing_data:
-        print("No change found")
+        print("No change found on source site")
         exit(0)
 
     with p.open(mode="w", newline="") as file:
         writer = csv.writer(file)
         writer.writerows(data)
+
+    repo = Repo(path=Path.cwd())
+
+    if not repo.is_dirty():
+        print("Nothing to commit locally")
+        exit(0)
+
+    repo.index.add(items=[FILENAME,])
+    repo.index.commit(message=f"Update csv at {datetime.utcnow()}")
+    repo.remote().push()
 
     exit(0)
 
